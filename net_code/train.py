@@ -13,8 +13,7 @@ import net_code.tf_utils as U
 # Reinforce and PPO
 
 def learn(config):
-    version = 'v0'
-    model_to_save_path = os.path.join(config['model_dir_p'], version)
+    model_to_save_path = config['model_dir']
     if not os.path.exists(model_to_save_path):
         os.mkdir(model_to_save_path)
 
@@ -193,7 +192,7 @@ def main():
     parser.add_argument('--use_GPU', help='if use gpu', default=True)
     parser.add_argument('--hid-layers-sizes', help='the sizes of each hidden layer', default=[64, 64])
     parser.add_argument('--dis_type', '-dt', help='type of distance to use', default='kl')
-    parser.add_argument('--model_dir', help='model saving directory', type=str, default='../../mamodel_p/')
+    parser.add_argument('--model-dir', help='model saving directory', type=str, default='../mamodel/')
     parser.add_argument('--dir_logs', '-dl', help='logs saving directory', type=str, default='../../logs/')
 
     parser.add_argument('--scenario-name', '-sn', help='scenario name', type=str, default='simple3')
@@ -209,7 +208,7 @@ def main():
     parser.add_argument('--valueloss-weight', default=1.0)
     parser.add_argument('--lr_decay_rate', default=0.95)
     parser.add_argument('--lr_decay_iters', default=400)
-    parser.add_argument('--ppo', '-ppo', default=True)
+    parser.add_argument('--ppo', action="store_true", default=False)
     parser.add_argument('--clip_param', '-cp', default=0.2, type=float)
     args = parser.parse_args()
     print_args(args)

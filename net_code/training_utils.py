@@ -53,12 +53,6 @@ def softmax(x):
     return e_x / np.sum(e_x, axis=-1, keepdims=True)
 
 
-# TODO check about it.
-# def get_initial_obs(news, ob):
-#     starting_ob = ob[starting_index, ...].copy()
-#     # wipe out history
-#     return starting_ob
-
 
 def get_initial_embedding_target(mob):
     #mob multi-agent observations
@@ -106,50 +100,10 @@ def get_distance_fn(dis_type):
         return h_distance
     elif dis_type.lower() == 'ce':
         return cross_entropy
-    elif dis_type.lower() == 'sl'
+    elif dis_type.lower() == 'sl':
         return square_loss
     else:
         raise Exception("Unrecognized distance type")
-
-
-def traj_segment_generator_for_b(pi, env, horizon, stochastic):
-    t = 0
-    ac = [action_space.sample() for action_space in env.action_space] # not used, just so we have the datatype
-    new = True # marks if we're on first timestep of an episode
-    ob = env.reset()
-
-    cur_ep_len = 0 # len of current episode
-    ep_lens = [] # lengths of ...
-
-    # Initialize history arrays
-    obs = np.array([ob for _ in range(horizon)]) # 3D array
-    news = np.zeros(horizon, 'int32') # shared
-
-    while True:
-        ac0, _, b0, _ = pi.act(stochastic, ob[0])
-        ac1, _, b1, _ = pi.act(stochastic, ob[1])
-        b = [b0, b1]
-
-        # Slight weirdness here because we need value function at time T
-        # before returning segment [0, T-1] so we get the correct
-        # terminal value
-        if t > 0 and t % horizon == 0:
-            yield {"ob" : obs, "new" : news, "ep_lens" : ep_lens}
-            # Be careful!!! if you change the downstream algorithm to aggregate
-            # several of these batches, then be sure to do a deepcopy
-            ep_lens = []
-        i = t % horizon
-        obs[i] = ob
-        news[i] = new
-
-        ob, rew, new, _ = env.step(ac)
-
-        cur_ep_len += 1
-        if new:
-            ep_lens.append(cur_ep_len)
-            cur_ep_len = 0
-            ob = env.reset()
-        t += 1
 
 
 def traj_segment_generator(pi, env, horizon, stochastic):
@@ -170,23 +124,15 @@ def traj_segment_generator(pi, env, horizon, stochastic):
     vpreds = np.zeros((horizon, 2), 'float32') # 2D array
     news = np.zeros(horizon, 'int32') # shared
     acs = np.array([ac for _ in range(horizon)]) # 2D array
-    e_shape = tuple([int(d) for d in pi.e.shape[1:]])
-    es = np.zeros((horizon, 2) + e_shape, 'float32')
-    b_shape = (tuple([int(d) for d in pi.b.shape[1:]]))
-    bs = np.zeros((horizon, 2) + b_shape, "float32")
 
     print(obs.shape,"observation")
     print(rews.shape, "rews")
     print(acs.shape, "acs")
-    print(es.shape, "es")
-    print(bs.shape, "bs")
 
     while True:
-        ac0, e0, b0, vpred0 = pi.act(stochastic, ob[0])
-        ac1, e1, b1, vpred1 = pi.act(stochastic, ob[1])
+        ac0, vpred0 = pi.act(stochastic, ob[0])
+        ac1, vpred1 = pi.act(stochastic, ob[1])
         ac = [ac0, ac1]
-        e = [e0, e1]
-        b = [b0, b1]
         vpred = [vpred0, vpred1]
 
         # Slight weirdness here because we need value function at time T
@@ -195,7 +141,7 @@ def traj_segment_generator(pi, env, horizon, stochastic):
         if t > 0 and t % horizon == 0:
             yield {"ob" : obs, "rew" : rews, "vpred" : vpreds, "new" : news,
                     "ac" : acs, "nextvpred": np.array([vpred0, vpred1]) * (1 - new),
-                    "ep_rets" : ep_rets, "ep_lens" : ep_lens, "e": es, "b": bs}
+                    "ep_rets" : ep_rets, "ep_lens" : ep_lens}
             # Be careful!!! if you change the downstream algorithm to aggregate
             # several of these batches, then be sure to do a deepcopy
             ep_rets = []
@@ -205,8 +151,6 @@ def traj_segment_generator(pi, env, horizon, stochastic):
         vpreds[i] = vpred
         news[i] = new
         acs[i] = ac
-        es[i] = e
-        bs[i] = b
 
         ob, rew, new, _ = env.step(ac)
         rews[i] = rew
