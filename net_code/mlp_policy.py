@@ -27,7 +27,7 @@ class MlpPolicy(object):
             last_out = self.ob
             for idx, i in enumerate(hid_layers_sizes):
                 last_out = tf.contrib.layers.fully_connected(last_out, i, activation_fn=tf.nn.relu, scope='pol_%i' % (idx))
-            pdparam = tf.contrib.layers.fully_connected(last_out, 5, activation_fn=tf.nn.relu, scope='pol_final')
+            pdparam = tf.contrib.layers.fully_connected(last_out, 5, activation_fn=None, scope='pol_final')
         self.pd = self.pdtype.pdfromflat(pdparam)
         # select or sample actions
         self.stochastic = tf.placeholder(dtype=tf.bool, shape=())

@@ -4,7 +4,7 @@ from net_code.mlp_policy import MlpPolicy
 from dataset import Dataset
 import numpy as np
 from utils import print_args
-from net_code.training_utils import saveToFlat
+from net_code.training_utils import saveToFlat, loadFromFlat
 import os
 from WrapperEnv import WrapperEnv
 import net_code.tf_utils as U
@@ -51,7 +51,7 @@ def learn(config):
     tf_adv = tf.placeholder(dtype=tf.float32, shape=[None], name='tf_adv')  # Empirical return
     tf_ret = tf.placeholder(dtype=tf.float32, shape=[None], name='tf_ret')  # Empirical return
     tf_ac = pi.pdtype.sample_placeholder([None], name='tf_ac')  # action
-
+    pol_entpen = (-0.01) * tf.reduce_mean(pi.pd.entropy())
     # setup losses
     if ppo:
         ratio = tf.exp(pi.pd.logp(tf_ac) - oldpi.pd.logp(tf_ac)) # pnew / pold
@@ -62,7 +62,7 @@ def learn(config):
         policy_loss = -tf.reduce_mean(tf.multiply(pi.pd.logp(tf_ac), tf_adv))
     value_loss = tf.reduce_mean(tf.square(pi.vpred - tf_ret))
     # TODO you may want some weights here
-    total_loss = policy_loss + value_loss*config["valueloss_weight"]
+    total_loss = pol_entpen + policy_loss + value_loss*config["valueloss_weight"]
 
     policy_summary = tf.summary.scalar('policy loss', total_loss)
 
@@ -96,6 +96,7 @@ def learn(config):
     best_iter = 0
     with tf.Session(config=device_config) as sess:
         sess.run(tf.global_variables_initializer())  # initialized
+
         while True:
             if iters_so_far >= max_iters:
                 break
@@ -190,7 +191,7 @@ def main():
     # global hyper parameters
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--use_GPU', help='if use gpu', default=True)
-    parser.add_argument('--hid-layers-sizes', help='the sizes of each hidden layer', default=[64, 64])
+    parser.add_argument('--hid-layers-sizes', help='the sizes of each hidden layer', default=[32,16])
     parser.add_argument('--dis_type', '-dt', help='type of distance to use', default='kl')
     parser.add_argument('--model-dir', help='model saving directory', type=str, default='../mamodel/')
     parser.add_argument('--dir_logs', '-dl', help='logs saving directory', type=str, default='../../logs/')
@@ -198,8 +199,8 @@ def main():
     parser.add_argument('--scenario-name', '-sn', help='scenario name', type=str, default='simple3')
     parser.add_argument('--max-env-steps', '-mss', help='maximum steps in the env', type=int, default=25)
     # online learning hyper parameters
-    parser.add_argument('--optim_epochs', '-oe', help='optimising epochs', type=int, default=5)
-    parser.add_argument('--optim_batchsize', '-ob', help='optimising batch size', type=int, default=1024)
+    parser.add_argument('--optim_epochs', '-oe', help='optimising epochs', type=int, default=3)
+    parser.add_argument('--optim_batchsize', '-ob', help='optimising batch size', type=int, default=640)
     parser.add_argument('--reward_discount', '-rd', help='reward discount factor', type=float, default=0.9)
     parser.add_argument('--lam', '-lam', help='reward discount factor', type=float, default=0.95)
     parser.add_argument('--num_iters', '-ni', help='number of iterations of training', type=int, default=300)
